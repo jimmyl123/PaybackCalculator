@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Estimate labor savings, payback period, and lifetime return for a Lantech C300 or C400 case erector." />
+  <title>Case Erector ROI Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #15233f;
+      --muted: #626e85;
+      --line: #dce3ef;
+      --paper: #ffffff;
+      --wash: #f2f5fb;
+      --brand: #011e81;
+      --brand-dark: #001355;
+      --brand-soft: #e9efff;
+      --accent: #ffc400;
+      --danger: #a63b35;
+      --shadow: 0 24px 70px rgba(23, 37, 42, .10);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 8% 0%, rgba(1, 30, 129, .10), transparent 31rem),
+        linear-gradient(180deg, #f8faff 0%, #eef2fa 100%);
+      color: var(--ink);
+      font-family: "DM Sans", system-ui, sans-serif;
+    }
+
+    button, input, select { font: inherit; }
+    button, select { cursor: pointer; }
+    .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 38px 0 52px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .brand { display: flex; align-items: center; min-width: 0; padding: 12px 18px; border-radius: 8px; background: var(--brand); }
+    .brand-logo { display: block; width: 173px; max-width: 100%; height: auto; }
+    .reset { border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px; color: var(--muted); background: rgba(255,255,255,.78); font-weight: 700; }
+    .reset:hover { color: var(--brand); border-color: #9aade1; }
+    .hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 48px; align-items: end; padding: 72px 0 38px; }
+    .eyebrow { margin: 0 0 14px; color: var(--brand); font-size: 13px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    h1, h2, h3, .metric-value { font-family: "Manrope", sans-serif; }
+    h1 { max-width: 800px; margin: 0; font-size: clamp(38px, 6vw, 72px); line-height: .98; letter-spacing: -.055em; }
+    .hero p { max-width: 600px; margin: 22px 0 0; color: var(--muted); font-size: 18px; line-height: 1.65; }
+    .hero-note { border-left: 3px solid var(--accent); padding: 4px 0 4px 20px; color: var(--muted); line-height: 1.55; }
+    .hero-note strong { display: block; margin-bottom: 5px; color: var(--ink); font-family: "Manrope"; font-size: 18px; }
+
+    .calculator { overflow: hidden; border: 1px solid rgba(157,170,200,.55); border-radius: 28px; background: rgba(255,255,255,.9); box-shadow: var(--shadow); backdrop-filter: blur(18px); }
+    .model-bar { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; padding: 24px 28px; color: white; background: linear-gradient(115deg, var(--brand-dark), var(--brand)); }
+    .model-bar h2 { margin: 0 0 5px; font-size: 20px; }
+    .model-bar p { margin: 0; color: rgba(255,255,255,.72); font-size: 14px; }
+    .model-select-wrap { min-width: 280px; }
+    .model-select-wrap label { display: block; margin-bottom: 7px; color: rgba(255,255,255,.7); font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    #machineModel { width: 100%; border: 1px solid rgba(255,255,255,.35); border-radius: 12px; padding: 12px 42px 12px 14px; color: var(--ink); background: white; font-weight: 800; }
+    .workspace { display: grid; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); }
+    .inputs { padding: 30px; border-right: 1px solid var(--line); }
+    .results { padding: 30px; background: rgba(244,247,253,.8); }
+    .section-kicker { margin: 0 0 7px; color: var(--brand); font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .section-title { margin: 0; font-size: 24px; letter-spacing: -.025em; }
+    .section-copy { margin: 8px 0 24px; color: var(--muted); font-size: 14px; line-height: 1.55; }
+    .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: #3d4c50; font-size: 13px; font-weight: 700; }
+    .field label span { color: #8a9698; font-weight: 500; }
+    .input-shell { position: relative; }
+    .input-shell .prefix, .input-shell .suffix { position: absolute; top: 50%; transform: translateY(-50%); color: #899698; font-weight: 700; pointer-events: none; }
+    .input-shell .prefix { left: 14px; }
+    .input-shell .suffix { right: 14px; font-size: 12px; }
+    input { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; background: var(--paper); color: var(--ink); font-weight: 700; transition: border-color .15s, box-shadow .15s; }
+    input.with-prefix { padding-left: 30px; }
+    input.with-suffix { padding-right: 55px; }
+    input:focus, select:focus { outline: none; border-color: #6486e5; box-shadow: 0 0 0 4px rgba(1,30,129,.14); }
+    .price-card { margin-top: 16px; }
+    .price-card .input-shell { color: var(--ink); }
+    .price-card input { font: 800 24px/1.2 "Manrope", sans-serif; padding-left: 32px; }
+    .price-card .prefix { color: var(--brand); font-size: 20px; }
+    .price-card .price-help { margin-top: 8px; color: #dbe4ff; font-size: 12px; line-height: 1.5; }
+    .price-reset { margin-top: 8px; padding: 0; border: 0; border-bottom: 1px solid currentColor; color: var(--accent); background: none; font-size: 12px; font-weight: 700; }
+    .price-reset:disabled { display: none; }
+    details { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 18px; }
+    summary { color: var(--brand); font-size: 13px; font-weight: 800; }
+    .advanced-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; margin-top: 18px; }
+    .helper { margin: 18px 0 0; color: #819092; font-size: 12px; line-height: 1.5; }
+    .message { display: none; margin-top: 16px; border-radius: 12px; padding: 12px 14px; font-size: 13px; font-weight: 700; }
+    .message.show { display: block; }
+    .error { border: 1px solid #efc1be; color: var(--danger); background: #fff2f1; }
+    .warning { border: 1px solid #ecd29f; color: #775008; background: #fff8e9; }
+
+    .outcome { display: grid; grid-template-columns: 1.1fr .9fr; gap: 14px; }
+    .metric { min-height: 128px; padding: 19px; border: 1px solid var(--line); border-radius: 17px; background: white; }
+    .metric.hero-metric { color: white; border: 0; background: linear-gradient(145deg, var(--brand-dark), var(--brand)); }
+    .metric-label { color: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .hero-metric .metric-label { color: rgba(255,255,255,.7); }
+    .metric-value { margin-top: 13px; font-size: clamp(27px, 4vw, 39px); font-weight: 800; letter-spacing: -.045em; }
+    .metric-note { margin-top: 7px; color: #849193; font-size: 11px; }
+    .hero-metric .metric-note { color: rgba(255,255,255,.68); }
+    .support-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
+    .small-metric { padding: 15px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.78); }
+    .small-metric .metric-value { margin-top: 7px; font-size: 20px; letter-spacing: -.03em; }
+    .story { margin-top: 18px; border-left: 3px solid var(--accent); padding: 3px 0 3px 16px; color: #516064; font-size: 14px; line-height: 1.6; }
+    .story strong { color: var(--ink); }
+    .chart-card { margin-top: 22px; padding: 18px; border: 1px solid var(--line); border-radius: 17px; background: white; }
+    .chart-heading { display: flex; justify-content: space-between; align-items: end; gap: 14px; margin-bottom: 15px; }
+    .chart-heading h3 { margin: 0; font-size: 15px; }
+    .chart-heading span { color: var(--muted); font-size: 11px; }
+    .assumption-line { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+    .pill { border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px; color: #607074; background: white; font-size: 11px; font-weight: 700; }
+    footer { margin-top: 22px; text-align: center; color: #7a898c; font-size: 12px; }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; gap: 24px; padding-top: 52px; }
+      .workspace { grid-template-columns: 1fr; }
+      .inputs { border-right: 0; border-bottom: 1px solid var(--line); }
+    }
+    @media (max-width: 620px) {
+      .shell { width: min(100% - 20px, 1180px); padding-top: 22px; }
+      .hero { padding: 40px 6px 28px; }
+      .model-bar, .field-grid, .advanced-grid, .outcome { grid-template-columns: 1fr; }
+      .model-select-wrap { min-width: 0; }
+      .inputs, .results { padding: 22px 18px; }
+      .support-grid { grid-template-columns: 1fr; }
+      .metric { min-height: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><img class="brand-logo" src="assets/lantech-logo.png" alt="Lantech" width="173" height="42" /></div>
+      <button class="reset" id="resetBtn" type="button">Reset assumptions</button>
+    </header>
+
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Lantech Case Erectors</p>
+        <h1>Turn every hand-built case into measurable savings.</h1>
+        <p>Compare the cost of manual case forming with a Lantech case erector and see the payback in seconds.</p>
+      </div>
+      <div class="hero-note">
+        <strong>An Easy ROI estimate</strong>
+        Uses your actual daily volume and labor rate.
+      </div>
+    </section>
+
+    <section class="calculator" aria-label="Case erector ROI calculator">
+      <div class="model-bar">
+        <div>
+          <h2>Choose your case erector</h2>
+          <p>Select a model. Adjust the price to match your quote.</p>
+        </div>
+        <div class="model-select-wrap">
+          <label for="machineModel">Machine model</label>
+          <select id="machineModel">
+            <option value="C300">Lantech C300 — $37,380</option>
+            <option value="C400">Lantech C400 — $46,715</option>
+          </select>
+          <div class="price-card">
+            <label for="machineCost">Equipment price (USD)</label>
+            <div class="input-shell">
+              <span class="prefix" aria-hidden="true">$</span>
+              <input id="machineCost" type="number" min="0" step="0.01" inputmode="decimal" aria-describedby="priceHelp" />
+            </div>
+            <p id="priceHelp" class="price-help">Base list price included. Edit for your quote.</p>
+            <button id="restorePriceBtn" class="price-reset" type="button" disabled>Use list price</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="workspace">
+        <section class="inputs">
+          <p class="section-kicker">Your operation</p>
+          <h2 class="section-title">Three numbers tell the story.</h2>
+          <p class="section-copy">Use a typical production day. Results update as you type.</p>
+
+          <div class="field-grid">
+            <div class="field full">
+              <label for="boxesPerDay">Cases formed each day <span>volume</span></label>
+              <div class="input-shell">
+                <input id="boxesPerDay" class="with-suffix" type="number" min="0" step="1" inputmode="numeric" />
+                <span class="suffix">cases</span>
+              </div>
+            </div>
+            <div class="field">
+              <label for="hourlyLaborCost">Loaded labor rate <span>per hour</span></label>
+              <div class="input-shell">
+                <span class="prefix">$</span>
+                <input id="hourlyLaborCost" class="with-prefix" type="number" min="0" step="0.01" inputmode="decimal" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="numWorkers">People forming cases <span>current</span></label>
+              <input id="numWorkers" type="number" min="1" step="1" inputmode="numeric" />
+            </div>
+          </div>
+
+          <details open>
+            <summary>Fine-tune assumptions</summary>
+            <div class="advanced-grid">
+              <div class="field">
+                <label for="machineLife">Machine life <span>years</span></label>
+                <input id="machineLife" type="number" min="1" step="1" />
+              </div>
+              <div class="field">
+                <label for="workingDaysPerYear">Operating days <span>per year</span></label>
+                <input id="workingDaysPerYear" type="number" min="1" step="1" />
+              </div>
+              <div class="field">
+                <label for="boxesPerMinutePerPerson">Manual forming rate <span>cases/min/person</span></label>
+                <input id="boxesPerMinutePerPerson" type="number" min="0.1" step="0.1" />
+              </div>
+              <div class="field">
+                <label for="machineLaborHoursPerDay">Residual machine labor <span>hours/day</span></label>
+                <input id="machineLaborHoursPerDay" type="number" min="0" step="0.25" />
+              </div>
+              <div class="field">
+                <label for="maintenancePerYear">Annual maintenance <span>per year</span></label>
+                <div class="input-shell"><span class="prefix">$</span><input id="maintenancePerYear" class="with-prefix" type="number" min="0" step="50" /></div>
+              </div>
+            </div>
+            <p class="helper">Equipment cost is spread over machine life; maintenance and residual operator time are included in annual machine cost.</p>
+          </details>
+
+          <div id="errorMessage" class="message error" role="alert"></div>
+          <div id="warningMessage" class="message warning" role="status"></div>
+        </section>
+
+        <section class="results" aria-live="polite">
+          <p class="section-kicker">The return</p>
+          <h2 class="section-title">A faster path to lower cost.</h2>
+          <p class="section-copy">These figures use the selected machine price and the assumptions at left.</p>
+
+          <div class="outcome">
+            <div class="metric hero-metric">
+              <div class="metric-label">Estimated payback</div>
+              <div class="metric-value" id="paybackPeriod">—</div>
+              <div class="metric-note" id="paybackNote">Based on annual net savings</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Annual savings</div>
+              <div class="metric-value" id="annualSavings">$0</div>
+              <div class="metric-note">After depreciation and operating costs</div>
+            </div>
+          </div>
+
+          <div class="support-grid">
+            <div class="small-metric">
+              <div class="metric-label" id="lifetimeLabel">10-year value</div>
+              <div class="metric-value" id="totalSavingsOverLife">$0</div>
+            </div>
+            <div class="small-metric">
+              <div class="metric-label">Manual hours/day</div>
+              <div class="metric-value" id="manualHoursPerDay">0.00</div>
+            </div>
+            <div class="small-metric">
+              <div class="metric-label">Labor cost/year</div>
+              <div class="metric-value" id="annualManualLaborCost">$0</div>
+            </div>
+          </div>
+
+          <div class="story" id="roiStory">Enter your operation details to build the ROI story.</div>
+
+          <div class="chart-card">
+            <div class="chart-heading">
+              <h3>Cumulative cash position</h3>
+              <span>Purchase in year 0 · savings thereafter</span>
+            </div>
+            <canvas id="cashflowChart" height="150"></canvas>
+          </div>
+
+          <div class="assumption-line">
+            <span class="pill" id="machineCostPill">Machine: $0</span>
+            <span class="pill" id="annualMachineCostPill">Annual machine cost: $0</span>
+            <span class="pill" id="hoursPerWorkerPill">0.00 hrs/person/day</span>
+          </div>
+        </section>
+      </div>
+    </section>
+    <footer>Planning estimate only. Confirm final equipment scope, freight, installation, and pricing before purchase.</footer>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const fmtMoney = (value) => Number.isFinite(value)
+      ? value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+      : 'N/A';
+    const fmtNum = (value, digits = 2) => Number.isFinite(value)
+      ? value.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
+      : 'N/A';
+    const readNum = (id) => {
+      const value = parseFloat($(id).value);
+      return Number.isFinite(value) ? value : NaN;
+    };
+
+    // Base-machine list prices checked 2026-09-22, before distributor discounts.
+    // Current sales configuration entries: C300 CN003202; C400 C0019327.
+    const MACHINE_CATALOG = {
+      C300: { name: 'Lantech C300', price: 37380 },
+      C400: { name: 'Lantech C400', price: 46715 },
+    };
+
+    const defaults = {
+      machineModel: 'C300',
+      hourlyLaborCost: 20,
+      boxesPerDay: 1000,
+      numWorkers: 2,
+      machineCost: MACHINE_CATALOG.C300.price,
+      machineLife: 10,
+      workingDaysPerYear: 300,
+      boxesPerMinutePerPerson: 2,
+      machineLaborHoursPerDay: 1,
+      maintenancePerYear: 0,
+    };
+
+    const STORAGE_KEY = 'caseErectorPaybackV5';
+    const inputIds = ['hourlyLaborCost', 'boxesPerDay', 'numWorkers', 'machineCost', 'machineLife', 'workingDaysPerYear', 'boxesPerMinutePerPerson', 'machineLaborHoursPerDay', 'maintenancePerYear'];
+    let chart;
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const parsed = JSON.parse(saved || localStorage.getItem('caseErectorPaybackV4') || localStorage.getItem('caseErectorPaybackV3') || '{}');
+        const state = { ...defaults, ...parsed };
+        if (!Object.hasOwn(MACHINE_CATALOG, state.machineModel)) state.machineModel = defaults.machineModel;
+        // Upgrade old sessions to the verified model price; preserve other inputs.
+        if (!saved || !Number.isFinite(state.machineCost) || state.machineCost < 0) {
+          state.machineCost = MACHINE_CATALOG[state.machineModel].price;
+        }
+        return state;
+      }
+      catch { return { ...defaults }; }
+    }
+
+    function readState() {
+      return {
+        machineModel: $('machineModel').value,
+        hourlyLaborCost: readNum('hourlyLaborCost'),
+        boxesPerDay: readNum('boxesPerDay'),
+        numWorkers: readNum('numWorkers'),
+        machineCost: readNum('machineCost'),
+        machineLife: readNum('machineLife'),
+        workingDaysPerYear: readNum('workingDaysPerYear'),
+        boxesPerMinutePerPerson: readNum('boxesPerMinutePerPerson'),
+        machineLaborHoursPerDay: readNum('machineLaborHoursPerDay'),
+        maintenancePerYear: readNum('maintenancePerYear'),
+      };
+    }
+
+    function writeState(state) {
+      $('machineModel').value = state.machineModel;
+      inputIds.forEach((id) => { $(id).value = state[id]; });
+      updatePriceCard(state.machineModel, state.machineCost);
+    }
+
+    function calculate(state) {
+      const errors = [];
+      if (!(state.hourlyLaborCost >= 0)) errors.push('Hourly labor cost must be 0 or greater.');
+      if (!(state.boxesPerDay >= 0)) errors.push('Cases per day must be 0 or greater.');
+      if (!(state.numWorkers >= 1)) errors.push('Number of workers must be at least 1.');
+      if (!(state.machineCost >= 0)) errors.push('Equipment price must be 0 or greater.');
+      if (!(state.machineLife >= 1)) errors.push('Machine life must be at least 1 year.');
+      if (!(state.workingDaysPerYear >= 1)) errors.push('Operating days per year must be at least 1.');
+      if (!(state.boxesPerMinutePerPerson > 0)) errors.push('Manual forming rate must be greater than 0.');
+      if (!(state.machineLaborHoursPerDay >= 0)) errors.push('Residual machine labor must be 0 or greater.');
+      if (!(state.maintenancePerYear >= 0)) errors.push('Maintenance must be 0 or greater.');
+      if (errors.length) return { ok: false, errors };
+
+      // Original base calculations, preserved.
+      const boxesPerHourPerPerson = state.boxesPerMinutePerPerson * 60;
+      const manualHoursPerDay = state.boxesPerDay / boxesPerHourPerPerson;
+      const hoursPerWorkerPerDay = manualHoursPerDay / state.numWorkers;
+      const annualManualLaborCost = manualHoursPerDay * state.hourlyLaborCost * state.workingDaysPerYear;
+      const annualDepreciation = state.machineCost / state.machineLife;
+      const annualMachineLabor = state.machineLaborHoursPerDay * state.hourlyLaborCost * state.workingDaysPerYear;
+      const annualMachineCost = annualDepreciation + state.maintenancePerYear + annualMachineLabor;
+      const annualSavings = annualManualLaborCost - annualMachineCost;
+      const paybackPeriod = annualSavings > 0 ? state.machineCost / annualSavings : Infinity;
+      const totalSavingsOverLife = annualSavings * state.machineLife;
+
+      const years = ['0'];
+      const cumulativeCashflow = [-state.machineCost];
+      const maxYears = Math.min(15, Math.max(1, Math.floor(state.machineLife)));
+      for (let year = 1; year <= maxYears; year += 1) {
+        years.push(String(year));
+        cumulativeCashflow.push(-state.machineCost + (annualSavings * year));
+      }
+
+      const warnings = [];
+      if (hoursPerWorkerPerDay > 10) warnings.push('Hours per person look high. Recheck staffing, daily cases, or the manual forming rate.');
+      if (annualSavings <= 0) warnings.push('These assumptions do not produce positive annual savings, so the machine does not reach payback.');
+
+      return { ok: true, ...state, manualHoursPerDay, hoursPerWorkerPerDay, annualManualLaborCost, annualMachineCost, annualSavings, paybackPeriod, totalSavingsOverLife, years, cumulativeCashflow, warnings };
+    }
+
+    function buildChart(result) {
+      const positive = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim();
+      const negative = '#c65c51';
+      const data = {
+        labels: result.years,
+        datasets: [{
+          data: result.cumulativeCashflow,
+          borderColor: positive,
+          backgroundColor: 'rgba(1,30,129,.12)',
+          fill: true,
+          tension: .28,
+          pointRadius: 3,
+          pointBackgroundColor: result.cumulativeCashflow.map((value) => value >= 0 ? positive : negative),
+        }],
+      };
+      const options = {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (context) => fmtMoney(context.raw) } } },
+        scales: {
+          x: { title: { display: true, text: 'Year' }, grid: { display: false } },
+          y: { ticks: { callback: (value) => `$${Math.round(value / 1000)}k` }, grid: { color: 'rgba(23,37,42,.07)' } },
+        },
+      };
+      if (!chart) chart = new Chart($('cashflowChart'), { type: 'line', data, options });
+      else { chart.data = data; chart.options = options; chart.update(); }
+    }
+
+    function updatePriceCard(model, currentPrice) {
+      const product = MACHINE_CATALOG[model];
+      const custom = currentPrice !== product.price;
+      $('priceHelp').textContent = !Number.isFinite(currentPrice)
+        ? `Enter an equipment price or use the ${model} list price of ${fmtMoney(product.price)}.`
+        : custom
+        ? `${model} base list price: ${fmtMoney(product.price)}. Your edited price is used below.`
+        : `${model} base list price with no added options. Edit for your quote.`;
+      $('restorePriceBtn').disabled = !custom;
+    }
+
+    function render(result) {
+      $('errorMessage').classList.remove('show');
+      $('warningMessage').classList.remove('show');
+      if (!result.ok) {
+        $('errorMessage').textContent = result.errors.join(' ');
+        $('errorMessage').classList.add('show');
+        ['manualHoursPerDay', 'annualManualLaborCost', 'annualSavings', 'totalSavingsOverLife', 'paybackPeriod', 'machineCostPill', 'annualMachineCostPill', 'hoursPerWorkerPill'].forEach(id => { $(id).textContent = '—'; });
+        $('paybackNote').textContent = 'Complete all inputs to calculate';
+        $('roiStory').textContent = 'Results will update when all inputs are valid.';
+        if (chart) { chart.destroy(); chart = null; }
+        return;
+      }
+
+      $('manualHoursPerDay').textContent = fmtNum(result.manualHoursPerDay);
+      $('annualManualLaborCost').textContent = fmtMoney(result.annualManualLaborCost);
+      $('annualSavings').textContent = fmtMoney(result.annualSavings);
+      $('totalSavingsOverLife').textContent = fmtMoney(result.totalSavingsOverLife);
+      $('lifetimeLabel').textContent = `${result.machineLife}-year value`;
+      $('machineCostPill').textContent = `${result.machineModel}: ${fmtMoney(result.machineCost)}`;
+      $('annualMachineCostPill').textContent = `Annual machine cost: ${fmtMoney(result.annualMachineCost)}`;
+      $('hoursPerWorkerPill').textContent = `${fmtNum(result.hoursPerWorkerPerDay)} hrs/person/day`;
+
+      if (!Number.isFinite(result.paybackPeriod)) {
+        $('paybackPeriod').textContent = 'No payback';
+        $('paybackNote').textContent = 'Adjust volume, labor, or machine cost';
+      } else if (result.paybackPeriod < 1) {
+        $('paybackPeriod').textContent = `${fmtNum(result.paybackPeriod * 12, 1)} months`;
+        $('paybackNote').textContent = 'Estimated time to recover the investment';
+      } else {
+        $('paybackPeriod').textContent = `${fmtNum(result.paybackPeriod, 1)} years`;
+        $('paybackNote').textContent = 'Estimated time to recover the investment';
+      }
+
+      const annualCases = result.boxesPerDay * result.workingDaysPerYear;
+      $('roiStory').innerHTML = `Your <strong>${Math.round(result.boxesPerDay).toLocaleString()} cases per day</strong> total roughly <strong>${Math.round(annualCases).toLocaleString()} cases per year</strong> and require ${fmtNum(result.manualHoursPerDay)} manual labor hours each operating day. This estimate includes ${fmtNum(result.machineLaborHoursPerDay)} hours of daily machine labor.`;
+
+      if (result.warnings.length) {
+        $('warningMessage').textContent = result.warnings.join(' ');
+        $('warningMessage').classList.add('show');
+      }
+      updatePriceCard(result.machineModel, result.machineCost);
+      buildChart(result);
+    }
+
+    function recalculate() {
+      const state = readState();
+      const result = calculate(state);
+      updatePriceCard(state.machineModel, state.machineCost);
+      if (result.ok) {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* Calculation works without storage. */ }
+      }
+      render(result);
+    }
+
+    $('machineModel').addEventListener('change', () => {
+      const model = $('machineModel').value;
+      const price = MACHINE_CATALOG[model].price;
+      $('machineCost').value = price;
+      updatePriceCard(model, price);
+      recalculate();
+    });
+    $('restorePriceBtn').addEventListener('click', () => {
+      $('machineCost').value = MACHINE_CATALOG[$('machineModel').value].price;
+      recalculate();
+    });
+    inputIds.forEach((id) => {
+      $(id).addEventListener('input', recalculate);
+      $(id).addEventListener('change', recalculate);
+    });
+    $('resetBtn').addEventListener('click', () => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults)); } catch { /* Reset works without storage. */ }
+      writeState(defaults);
+      render(calculate(defaults));
+    });
+
+    const initialState = loadState();
+    writeState(initialState);
+    render(calculate(initialState));
+  </script>
+</body>
+</html>
